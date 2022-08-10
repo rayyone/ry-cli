@@ -1,0 +1,19 @@
+#!/bin/bash
+# shellcheck disable=SC2046
+
+set -e
+
+source $RY_ROOT/utils/util
+
+debug $RY_CF_DIR_PATH
+
+[ -d $RY_CF_DIR_PATH ] && fatal "Rayyone CF config dir existed!"
+
+log_step "Creating config dir..."
+mkdir -p $RY_CF_DIR_PATH
+
+log_step "Copying config files..."
+cp $RY_ROOT/cf/root-example.conf ./$RY_CF_DIR_PATH/config.conf
+
+info "Success!"
+info "Please update the config file at '$RY_CF_DIR_PATH/config.conf'"

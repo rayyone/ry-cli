@@ -1,0 +1,76 @@
+#!/bin/bash
+
+set -e
+source $RY_ROOT/utils/util
+
+[ ! -d ./$RY_CF_DIR_PATH ] && fatal 'Config dir not found. Please run "ry ecs init" at your root project first'
+
+set -a
+source ./$RY_CF_DIR_PATH/config.conf
+set +a
+
+#input_aws_cred
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+  --path=* | -p=*)
+    path="${1#*=}"
+    ;;
+  -c)
+    action="create-stack"
+    ;;
+  -u)
+    action="update-stack"
+    ;;
+  -d)
+    action="delete-stack"
+    ;;
+  *)
+    printf "* Error: Invalid argument.*\n"
+    exit 1
+    ;;
+  esac
+  shift
+done
+
+[[ -z $action ]] && fatal "Wrong command format. You must specify -c or -u or -d"
+[[ -z $path ]] && fatal "Wrong command format. You must specify -p for the template dir path"
+info "$action at path: $path"
+
+# shellcheck source=./config.conf
+source ./"$path"/config.conf
+set +a
+
+script="aws s3 --profile $AWS_PROFILE sync . $S3_BUCKET --delete \\
+        --exclude '_templates/*' \\
+        --exclude '.idea/*' \\
+        --exclude '.git/*' \\
+        --exclude '.gitignore' \\
+        --exclude '*.sh'
+        "
+log_step "Uploading templates to S3..."
+echo "$script" && eval "$script"
+
+template_file="file://$path/$ROOT_TEMPLATE"
+param_file="file://$path/$ROOT_PARAMS"
+
+log_step "Executing CloudFormation command..."
+
+if [ "$action" == 'create-stack' ] || [ "$action" == 'update-stack' ]; then
+  script="aws cloudformation --profile $AWS_PROFILE $action --stack-name $STACK_NAME \\
+                --capabilities CAPABILITY_NAMED_IAM \\
+                --template-body $template_file \\
+    "
+  [ -n "$ROOT_PARAMS" ] && script="$script --parameters $param_file"
+
+  echo "$script" && eval "$script"
+fi
+
+if [ "$action" == 'delete-stack' ]; then
+  script="aws cloudformation --profile $AWS_PROFILE delete-stack --stack-name $STACK_NAME"
+  echo "$script" && eval "$script"
+fi
+
+output_url="https://$AWS_REGION.console.aws.amazon.com/cloudformation/home?region=$AWS_REGION#/stacks"
+info "\n"
+info "Check event log at $output_url"

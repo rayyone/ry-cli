@@ -1,0 +1,50 @@
+#!/bin/bash
+# shellcheck disable=SC2046
+
+set -e
+source $RY_ROOT/utils/util
+
+profile="default"
+
+config_files=($(ls ./$RY_ECS_DIR_PATH/ | grep conf | sort -r))
+if [[ ${#config_files[@]} -eq 0 ]]; then
+  while [ $# -gt 0 ]; do
+    case "$1" in
+    -p=*)
+      profile="${1#*=}"
+      ;;
+    *)
+      fatal "Error: Unknown argument: $1"
+      ;;
+    esac
+    shift
+  done
+else
+  [[ -z $profile ]] && profile="default"
+  config_file=$(select_prompt "Select stage: " "${config_files[@]}")
+  set -a
+  source ./$RY_ECS_DIR_PATH/$config_file
+  set +a
+  profile=$AWS_PROFILE
+fi
+
+info "Using AWS profile: "$profile
+
+clusters=($(aws ecs --profile $profile list-clusters | jq -r '.clusterArns' | tr -d '[]," ') )
+cluster=$(select_prompt "Select cluster: " "${clusters[@]}")
+
+services=($(aws ecs --profile $profile list-services --cluster $cluster | jq -r '.serviceArns' | tr -d '[]," '))
+service=$(select_prompt "Select service: " "${services[@]}")
+
+tasks=($(aws ecs --profile $profile list-tasks --cluster $cluster --service-name $service | jq -r '.taskArns' | tr -d '[]," '))
+task=$(select_prompt "Select task: " "${tasks[@]}")
+
+container=$(prompt "Select container: " "app")
+
+command=$(prompt 'Execute command:' '/bin/sh')
+script="aws ecs --profile $profile execute-command \\
+    --cluster $cluster \\
+    --container $container \\
+    --task $task  --interactive --command '$command'"
+
+log "$script" && eval "$script"

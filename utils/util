@@ -1,0 +1,101 @@
+#!/bin/bash
+# shellcheck disable=SC2046
+
+source $RY_ROOT/utils/constant
+
+DEBUG=true
+STEP_COUNT=0
+
+YELLOW=$'\e[33m'
+GREEN=$'\e[32m'
+LIGHT_GREEN=$'\e[92m'
+LIGHT_RED=$'\e[91m'
+BLUE=$'\e[34m'
+RED=$'\e[31m'
+GRAY=$'\e[90m'
+LIGHT_GRAY=$'\e[37m'
+MAGENTA=$'\e[35m'
+RESET=$'\e[0m'
+
+trap "exit 1" 10
+PROC="$$"
+
+fatal() {
+  echo $RED"$@"$RESET >&2
+  kill -10 $PROC
+}
+
+info () {
+  echo $YELLOW"${1}"$RESET
+}
+
+log () {
+  echo $MAGENTA"${1}"$RESET
+}
+
+warning () {
+  echo $LIGHT_RED"${1}"$RESET
+}
+
+log_step () {
+  STEP_COUNT=$(($STEP_COUNT + 1))
+  echo $'\n'$LIGHT_GREEN"Step $STEP_COUNT: ${1}"$RESET
+}
+
+debug () {
+  [ -n "$DEBUG" ] && echo $GRAY"Line:$(caller) ${1}"$RESET
+}
+
+prompt() {
+  local prompt=$GRAY"${1}"$RESET
+  local default_value=${2}
+  local description=${3}
+  local is_optional=${4}
+
+  [ -n "$description" ] && prompt_text=$'\n'"$prompt"$'\n'$description$'\n' || prompt_text="$prompt"
+  [ -n "$default_value" ] && prompt_text=$'\n'"$prompt_text"$'\n'$GRAY$"Default: $default_value"$RESET$'\n'
+
+  read -p "$prompt_text" input
+  [ -z "$input" ] && input=$default_value
+  [ "$is_optional" != 'true' ] && [ -z "$input" ] && fatal "This value is required!"
+  # Must use echo here to return this value
+  echo "$input"
+}
+
+select_prompt() {
+  local prompt=${1}
+  shift
+  local values=("$@")
+  PS3=$GRAY"$prompt"$RESET
+  select choice in "${values[@]}"; do
+      if [[ -z "$choice" ]]; then
+          printf '"%s" is not a valid choice\n' "$REPLY" >&2
+      else
+          user_in="$(( REPLY - 1 ))"
+          break
+      fi
+  done
+  # Must use echo here to return this value
+  echo "${values[user_in]}"
+}
+
+input_aws_cred() {
+  log_step "Setting AWS Credentials"
+  aws configure set region "$AWS_REGION" --profile "$AWS_PROFILE"
+
+  ACCESS_KEY=$(aws configure get aws_access_key_id --profile "$AWS_PROFILE") || true
+  SECRET_KEY=$(aws configure get aws_secret_access_key --profile "$AWS_PROFILE") || true
+  if [ -n "$ACCESS_KEY" ] && [ -n "$SECRET_KEY" ]; then
+    log "Found AWS credentials from aws credentials file. Let's use it!"
+  else
+    log "Not found AWS credentials from aws credentials file."
+
+    ACCESS_KEY=$(prompt 'Please input your AWS access key:')
+    aws configure set aws_access_key_id "$ACCESS_KEY" --profile "$AWS_PROFILE"
+
+    SECRET_KEY=$(prompt 'Please input your AWS secret key:')
+    aws configure set aws_secret_access_key "$SECRET_KEY" --profile "$AWS_PROFILE"
+
+    log "Successfully set these cred to ~/.aws/credentials with profile: $AWS_PROFILE"
+  fi
+}

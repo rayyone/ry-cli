@@ -1,0 +1,19 @@
+#!/bin/bash
+# shellcheck disable=SC2046
+
+set -e
+
+source $RY_ROOT/utils/util
+
+debug $RY_ECS_DIR_PATH
+
+[ -d $RY_ECS_DIR_PATH ] && fatal "Rayyone ECS config dir existed!"
+
+log_step "Creating config dir..."
+mkdir -p $RY_ECS_DIR_PATH
+
+log_step "Copying config files..."
+cp $RY_ROOT/ecs/example.conf ./$RY_ECS_DIR_PATH/staging.conf
+
+info "Success!"
+info "Please update the config file at '$RY_ECS_DIR_PATH/staging.conf'"

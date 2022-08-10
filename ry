@@ -1,0 +1,22 @@
+#!/bin/bash
+# shellcheck disable=SC2046
+
+set -e
+
+RY_ROOT="${BASH_SOURCE%/*}"
+if [[ ! -d "$RY_ROOT" ]]; then RY_ROOT="$PWD"; fi
+
+source $RY_ROOT/utils/util
+
+[ -z $1 ] || [ -z $2 ] && fatal "Wrong cli format!"
+
+[ ! -f $RY_ROOT/$1/$2 ] && fatal "Command not found!"
+
+case $1 in
+"ecs")
+  RY_ROOT=$RY_ROOT /bin/bash $RY_ROOT/$1/$2 "${@:3}"
+  ;;
+"cf")
+  RY_ROOT=$RY_ROOT /bin/bash $RY_ROOT/$1/$2 "${@:3}"
+  ;;
+esac
