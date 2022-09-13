@@ -34,6 +34,11 @@ set +a
 input_aws_cred
 
 new_deployment_ecs_service() {
+  if [[ -z $ECS_CLUSTER_NAME ]] || [[ -z $ECS_SERVICE_NAME ]]; then
+    log "Can not find Cluster or Ecs Service. Skip deployment to ECS"
+    return
+  fi
+
   log_step "Force new deployment on ECS service: $ECS_SERVICE_NAME in CLUSTER $ECS_CLUSTER_NAME"
   script="aws ecs update-service --profile $AWS_PROFILE \\
                 --cluster $ECS_CLUSTER_NAME \\
@@ -53,8 +58,8 @@ if [[ $skip_build != "true" ]]; then
   aws ecr get-login-password --profile "$AWS_PROFILE" --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ECR_REPO"
 
   log_step "Building docker images"
-#  docker-compose build
-  DOCKER_DEFAULT_PLATFORM=linux/arm64 docker-compose build
+
+  docker-compose build
 
   log_step "Uploading to AWS ECR repo: $IMAGE_URI"
   docker-compose push

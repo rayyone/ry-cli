@@ -72,5 +72,5 @@ if [ "$action" == 'delete-stack' ]; then
 fi
 
 output_url="https://$AWS_REGION.console.aws.amazon.com/cloudformation/home?region=$AWS_REGION#/stacks"
-info "\n"
+
 info "Check event log at $output_url"
