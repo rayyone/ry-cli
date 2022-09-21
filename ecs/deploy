@@ -15,6 +15,9 @@ while [ $# -gt 0 ]; do
   --config=* | -c=*)
     config_file_arg="${1#*=}"
     ;;
+  --desired_count=* | -n=*)
+    desired_count="${1#*=}"
+    ;;
   *)
     fatal "Error: Unknown argument: $1"
     ;;
@@ -28,7 +31,6 @@ if [[ -z $config_file ]]; then
   config_file=$(select_prompt "Select stage: " "${config_files[@]}")
 fi
 
-
 set -a
 source ./$RY_ECS_DIR_PATH/$config_file
 set +a
@@ -36,6 +38,6 @@ set +a
 input_aws_cred
 
 info "Deploying to ECS..."
-new_deployment_ecs_service
+new_deployment_ecs_service "$desired_count"
 
 log "Success!"

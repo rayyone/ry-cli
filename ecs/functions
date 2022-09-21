@@ -5,6 +5,8 @@ set -e
 source $RY_ROOT/utils/util
 
 new_deployment_ecs_service() {
+  local desired_count=${1}
+
   if [[ -z $ECS_CLUSTER_NAME ]] || [[ -z $ECS_SERVICE_NAME ]]; then
     log "Can not find Cluster or Ecs Service. Skip deployment to ECS"
     return
@@ -14,7 +16,10 @@ new_deployment_ecs_service() {
   script="aws ecs update-service --profile $AWS_PROFILE \\
                 --cluster $ECS_CLUSTER_NAME \\
                 --service $ECS_SERVICE_NAME \\
-                --force-new-deployment"
+                --force-new-deployment \\
+    "
+
+  [ -n "$desired_count" ] && script="$script --desired-count $desired_count"
 
   log "$script" && eval "$script"
   output_url="https://$AWS_REGION.console.aws.amazon.com/ecs/home?region=$AWS_REGION#/clusters/$ECS_CLUSTER_NAME/services/$ECS_SERVICE_NAME/events"
