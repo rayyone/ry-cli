@@ -1,0 +1,74 @@
+#!/bin/bash
+# shellcheck disable=SC2046
+
+set -e
+source $RY_ROOT/utils/util
+source $RY_ROOT/ecs/functions
+
+[ ! -d ./$RY_ECS_DIR_PATH ] && fatal 'Config dir not found. Please run "ry ecs init" at your root project first'
+
+current_git_branch=$(git rev-parse --abbrev-ref HEAD)
+info "Git branch: $current_git_branch"
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+  --deploy | -d)
+    should_deploy="true"
+    ;;
+  --config=* | -c=*)
+    config_file_arg="${1#*=}"
+    ;;
+  --images=* | -i=*)
+    images="${1#*=}"
+    ;;
+  *)
+    fatal "Error: Unknown argument: $1"
+    ;;
+  esac
+  shift
+done
+
+config_file=$config_file_arg
+if [[ -z $config_file ]]; then
+  config_files=($(ls ./$RY_ECS_DIR_PATH/ | grep conf | sort -r))
+  config_file=$(select_prompt "Select stage: " "${config_files[@]}")
+fi
+
+set -a
+source ./$RY_ECS_DIR_PATH/$config_file
+set +a
+
+input_aws_cred
+
+log "IMAGE_URI: $IMAGE_URI"
+
+info "Start building & upload images to AWS ECR"
+
+log_step "Logging in Amazon ECR..."
+aws ecr get-login-password --profile "$AWS_PROFILE" --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ECR_REPO"
+
+log_step "Building docker images"
+images_str=""
+if [[ -n $images ]]; then
+  images_str=$(echo "$images" | sed -r 's/,/ /g')
+fi
+build_script="docker-compose build $images_str"
+echo "$build_script" && eval "$build_script"
+
+log_step "Uploading to AWS ECR repo: $IMAGE_URI"
+docker-compose push
+log "Upload to AWS ECR successfully!"
+
+log_step 'Delete untagged images... Press "Ctr + q" to proceed to next step'
+IMAGES_TO_DELETE=$(aws ecr list-images --profile $AWS_PROFILE --region "$AWS_REGION" --repository-name "$ECR_APP_REPO_NAME" --filter "tagStatus=UNTAGGED" --query 'imageIds[*]' --output json)
+aws ecr batch-delete-image --profile $AWS_PROFILE --repository-name "$ECR_APP_REPO_NAME" --image-ids "$IMAGES_TO_DELETE" || true
+
+
+if [[ $should_deploy == "true" ]]; then
+  info "Deploying to ECS..."
+  new_deployment_ecs_service
+  log "Success!"
+  exit 0
+fi
+
+log "Success!"

@@ -3,6 +3,7 @@
 
 set -e
 source $RY_ROOT/utils/util
+source $RY_ROOT/ecs/functions
 
 [ ! -d ./$RY_ECS_DIR_PATH ] && fatal 'Config dir not found. Please run "ry ecs init" at your root project first'
 
@@ -11,11 +12,8 @@ info "Git branch: $current_git_branch"
 
 while [ $# -gt 0 ]; do
   case "$1" in
-  --skip-build | -sb)
-    skip_build="true"
-    ;;
-  --build-only | -bo)
-    build_only="true"
+  --config=* | -c=*)
+    config_file_arg="${1#*=}"
     ;;
   *)
     fatal "Error: Unknown argument: $1"
@@ -24,8 +22,12 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-config_files=($(ls ./$RY_ECS_DIR_PATH/ | grep conf | sort -r))
-config_file=$(select_prompt "Select stage: " "${config_files[@]}")
+config_file=$config_file_arg
+if [[ -z $config_file ]]; then
+  config_files=($(ls ./$RY_ECS_DIR_PATH/ | grep conf | sort -r))
+  config_file=$(select_prompt "Select stage: " "${config_files[@]}")
+fi
+
 
 set -a
 source ./$RY_ECS_DIR_PATH/$config_file
@@ -33,48 +35,7 @@ set +a
 
 input_aws_cred
 
-new_deployment_ecs_service() {
-  if [[ -z $ECS_CLUSTER_NAME ]] || [[ -z $ECS_SERVICE_NAME ]]; then
-    log "Can not find Cluster or Ecs Service. Skip deployment to ECS"
-    return
-  fi
-
-  log_step "Force new deployment on ECS service: $ECS_SERVICE_NAME in CLUSTER $ECS_CLUSTER_NAME"
-  script="aws ecs update-service --profile $AWS_PROFILE \\
-                --cluster $ECS_CLUSTER_NAME \\
-                --service $ECS_SERVICE_NAME \\
-                --force-new-deployment"
-
-  log "$script" && eval "$script"
-  output_url="https://$AWS_REGION.console.aws.amazon.com/ecs/home?region=$AWS_REGION#/clusters/$ECS_CLUSTER_NAME/services/$ECS_SERVICE_NAME/events"
-  info "Check event log at $output_url"
-}
-debug "IMAGE_URI: $IMAGE_URI"
-
-if [[ $skip_build != "true" ]]; then
-  info "Start building & upload images to AWS ECR"
-
-  log_step "Logging in Amazon ECR..."
-  aws ecr get-login-password --profile "$AWS_PROFILE" --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ECR_REPO"
-
-  log_step "Building docker images"
-
-  docker-compose build
-
-  log_step "Uploading to AWS ECR repo: $IMAGE_URI"
-  docker-compose push
-  log "Upload to AWS ECR successfully!"
-
-  log_step 'Delete untagged images... Press "Ctr + q" to proceed to next step'
-  IMAGES_TO_DELETE=$(aws ecr list-images --profile $AWS_PROFILE --region "$AWS_REGION" --repository-name "$ECR_APP_REPO_NAME" --filter "tagStatus=UNTAGGED" --query 'imageIds[*]' --output json)
-  aws ecr batch-delete-image --profile $AWS_PROFILE --repository-name "$ECR_APP_REPO_NAME" --image-ids "$IMAGES_TO_DELETE" || true
-
-fi
-
-if [[ $build_only == "true" ]]; then
-  log "Success!"
-  exit 0
-fi
-
 info "Deploying to ECS..."
 new_deployment_ecs_service
+
+log "Success!"
