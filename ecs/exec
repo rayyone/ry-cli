@@ -6,31 +6,43 @@ source $RY_ROOT/utils/util
 
 profile="default"
 
-config_files=($(ls ./$RY_ECS_DIR_PATH/ | grep conf | sort -r))
-if [[ ${#config_files[@]} -eq 0 ]]; then
-  while [ $# -gt 0 ]; do
-    case "$1" in
-    -p=*)
-      profile="${1#*=}"
-      ;;
-    *)
-      fatal "Error: Unknown argument: $1"
-      ;;
-    esac
-    shift
-  done
-else
-  [[ -z $profile ]] && profile="default"
-  config_file=$(select_prompt "Select stage: " "${config_files[@]}")
-  set -a
-  source ./$RY_ECS_DIR_PATH/$config_file
-  set +a
-  profile=$AWS_PROFILE
+while [ $# -gt 0 ]; do
+  case "$1" in
+  -p=*)
+    profile="${1#*=}"
+    ;;
+  -h)
+    info "Available options:
+-p      aws profile name
+-h      help"
+    exit 0
+    ;;
+  *)
+    fatal "Error: Unknown argument: $1"
+    ;;
+  esac
+  shift
+done
+
+if [[ -z $profile ]]; then
+  profile="default"
+  config_files=($(ls ./$RY_ECS_DIR_PATH/ 2>&1 | grep conf | sort -r))
+  if [[ ${#config_files[@]} -eq 0 ]]; then
+    info "Could not find '.rayyone' config dir."
+    info "Using the 'default' profile."
+    info "[Hint] Add option: -p=[aws_profile] to use your desired AWS profile."
+  else
+    config_file=$(select_prompt "Select stage: " "${config_files[@]}")
+    set -a
+    source ./$RY_ECS_DIR_PATH/$config_file
+    set +a
+    profile=$AWS_PROFILE
+  fi
 fi
 
 info "Using AWS profile: "$profile
 
-clusters=($(aws ecs --profile $profile list-clusters | jq -r '.clusterArns' | tr -d '[]," ') )
+clusters=($(aws ecs --profile $profile list-clusters | jq -r '.clusterArns' | tr -d '[]," '))
 cluster=$(select_prompt "Select cluster: " "${clusters[@]}")
 
 services=($(aws ecs --profile $profile list-services --cluster $cluster | jq -r '.serviceArns' | tr -d '[]," '))
@@ -41,7 +53,7 @@ task=$(select_prompt "Select task: " "${tasks[@]}")
 
 container=$(prompt "Select container: " "app")
 
-command=$(prompt 'Execute command:' '/bin/sh')
+command=$(prompt 'Execute command:' 'bash')
 script="aws ecs --profile $profile execute-command \\
     --cluster $cluster \\
     --container $container \\

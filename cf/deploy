@@ -3,14 +3,6 @@
 set -e
 source $RY_ROOT/utils/util
 
-[ ! -d ./$RY_CF_DIR_PATH ] && fatal 'Config dir not found. Please run "ry ecs init" at your root project first'
-
-set -a
-source ./$RY_CF_DIR_PATH/config.conf
-set +a
-
-#input_aws_cred
-
 while [ $# -gt 0 ]; do
   case "$1" in
   --path=* | -p=*)
@@ -25,6 +17,15 @@ while [ $# -gt 0 ]; do
   -d)
     action="delete-stack"
     ;;
+  -h)
+    info "Available options:
+-p    --path    path to root stack
+-c              create stack
+-u              update stack
+-d              delete stack
+-h              help"
+    exit 0
+    ;;
   *)
     printf "* Error: Invalid argument.*\n"
     exit 1
@@ -36,6 +37,12 @@ done
 [[ -z $action ]] && fatal "Wrong command format. You must specify -c or -u or -d"
 [[ -z $path ]] && fatal "Wrong command format. You must specify -p for the template dir path"
 info "$action at path: $path"
+
+[ ! -d ./$RY_CF_DIR_PATH ] && fatal 'Config dir not found. Please run "ry ecs init" at your root project first'
+
+set -a
+source ./$RY_CF_DIR_PATH/config.conf
+set +a
 
 # shellcheck source=./config.conf
 source ./"$path"/config.conf

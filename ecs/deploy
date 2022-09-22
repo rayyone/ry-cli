@@ -5,11 +5,6 @@ set -e
 source $RY_ROOT/utils/util
 source $RY_ROOT/ecs/functions
 
-[ ! -d ./$RY_ECS_DIR_PATH ] && fatal 'Config dir not found. Please run "ry ecs init" at your root project first'
-
-current_git_branch=$(git rev-parse --abbrev-ref HEAD)
-info "Git branch: $current_git_branch"
-
 while [ $# -gt 0 ]; do
   case "$1" in
   --config=* | -c=*)
@@ -18,6 +13,13 @@ while [ $# -gt 0 ]; do
   --desired_count=* | -n=*)
     desired_count="${1#*=}"
     ;;
+  -h)
+    info "Available options:
+-c    --config          path to .rayyone config file
+-n    --desired_count   desired running tasks
+-h                      help"
+    exit 0
+    ;;
   *)
     fatal "Error: Unknown argument: $1"
     ;;
@@ -25,9 +27,14 @@ while [ $# -gt 0 ]; do
   shift
 done
 
+[ ! -d ./$RY_ECS_DIR_PATH ] && fatal 'Config dir not found. Please run "ry ecs init" at your root project first'
+
+current_git_branch=$(git rev-parse --abbrev-ref HEAD)
+info "Git branch: $current_git_branch"
+
 config_file=$config_file_arg
 if [[ -z $config_file ]]; then
-  config_files=($(ls ./$RY_ECS_DIR_PATH/ | grep conf | sort -r))
+  config_files=($(ls ./$RY_ECS_DIR_PATH/ 2>&1 | grep conf | sort -r))
   config_file=$(select_prompt "Select stage: " "${config_files[@]}")
 fi
 

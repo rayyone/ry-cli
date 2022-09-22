@@ -5,11 +5,6 @@ set -e
 source $RY_ROOT/utils/util
 source $RY_ROOT/ecs/functions
 
-[ ! -d ./$RY_ECS_DIR_PATH ] && fatal 'Config dir not found. Please run "ry ecs init" at your root project first'
-
-current_git_branch=$(git rev-parse --abbrev-ref HEAD)
-info "Git branch: $current_git_branch"
-
 while [ $# -gt 0 ]; do
   case "$1" in
   --deploy | -d)
@@ -21,6 +16,14 @@ while [ $# -gt 0 ]; do
   --images=* | -i=*)
     images="${1#*=}"
     ;;
+  -h)
+    info "Available options:
+-c    --config   path to .rayyone config file
+-d    --deploy   deploy to ecs after build successfully
+-i    --images   docker images to build, skip to build all images in docker-compose.yml
+-h               help"
+    exit 0
+    ;;
   *)
     fatal "Error: Unknown argument: $1"
     ;;
@@ -28,9 +31,14 @@ while [ $# -gt 0 ]; do
   shift
 done
 
+[ ! -d ./$RY_ECS_DIR_PATH ] && fatal 'Config dir not found. Please run "ry ecs init" at your root project first'
+
+current_git_branch=$(git rev-parse --abbrev-ref HEAD)
+info "Git branch: $current_git_branch"
+
 config_file=$config_file_arg
 if [[ -z $config_file ]]; then
-  config_files=($(ls ./$RY_ECS_DIR_PATH/ | grep conf | sort -r))
+  config_files=($(ls ./$RY_ECS_DIR_PATH/ 2>&1 | grep conf | sort -r))
   config_file=$(select_prompt "Select stage: " "${config_files[@]}")
 fi
 
@@ -62,7 +70,6 @@ log "Upload to AWS ECR successfully!"
 log_step 'Delete untagged images... Press "Ctr + q" to proceed to next step'
 IMAGES_TO_DELETE=$(aws ecr list-images --profile $AWS_PROFILE --region "$AWS_REGION" --repository-name "$ECR_APP_REPO_NAME" --filter "tagStatus=UNTAGGED" --query 'imageIds[*]' --output json)
 aws ecr batch-delete-image --profile $AWS_PROFILE --repository-name "$ECR_APP_REPO_NAME" --image-ids "$IMAGES_TO_DELETE" || true
-
 
 if [[ $should_deploy == "true" ]]; then
   info "Deploying to ECS..."
