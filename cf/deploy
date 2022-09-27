@@ -49,7 +49,7 @@ source ./"$path"/config.conf
 set +a
 
 script="aws s3 --profile $AWS_PROFILE sync ./$path $S3_BUCKET/$path --delete \\
-        --exclude '_templates/*' \\
+        --exclude '_example/*' \\
         --exclude '.idea/*' \\
         --exclude '.git/*' \\
         --exclude '.gitignore' \\
