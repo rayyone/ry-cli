@@ -18,9 +18,9 @@ while [ $# -gt 0 ]; do
     ;;
   -h)
     info "Available options:
--c    --config   path to .rayyone config file
--d    --deploy   deploy to ecs after build successfully
--i    --images   docker images to build, skip to build all images in docker-compose.yml
+-c    --config   Config file's name in .rayyone dir (staging.conf, prod.conf,...)
+-d    --deploy   deploy to AWS ECS after building successfully (boolean)
+-i    --images   Built docker services, separate by a colon (i=app,nginx,redis). Skip this option to build all images in docker-compose.yml
 -h               help"
     exit 0
     ;;

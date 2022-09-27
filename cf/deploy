@@ -19,7 +19,7 @@ while [ $# -gt 0 ]; do
     ;;
   -h)
     info "Available options:
--p    --path    path to root stack
+-p    --path    path to ECS root stack
 -c              create stack
 -u              update stack
 -d              delete stack
