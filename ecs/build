@@ -46,6 +46,8 @@ set -a
 source ./$RY_ECS_DIR_PATH/$config_file
 set +a
 
+env_confirm
+
 input_aws_cred
 
 log "IMAGE_URI: $IMAGE_URI"

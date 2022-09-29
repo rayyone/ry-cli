@@ -99,3 +99,15 @@ input_aws_cred() {
     log "Successfully set these cred to ~/.aws/credentials with profile: $AWS_PROFILE"
   fi
 }
+
+env_confirm() {
+  if [[ $ENV == "prod" ]]; then
+    read -r -p "${RED}ARE YOU SURE CONTINUE ON PRODUCTION? [y/N] " response
+    if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]
+    then
+      info "DEPLOY TO PRODUCTION!!!!!"
+    else
+      exit
+    fi
+  fi
+}
