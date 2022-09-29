@@ -5,6 +5,19 @@ set -e
 
 source $RY_ROOT/utils/util
 
+if ! command -v session-manager-plugin &> /dev/null
+then
+    info "Install session manager plugin"
+    if [ "$(uname)" == "Darwin" ]; then
+      curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/mac/sessionmanager-bundle.zip" -o "sessionmanager-bundle.zip"
+      unzip sessionmanager-bundle.zip
+      sudo ./sessionmanager-bundle/install -i /usr/local/sessionmanagerplugin -b /usr/local/bin/session-manager-plugin
+      rm -rf sessionmanager-bundle/  sessionmanager-bundle.zip
+    else
+      info "Please install session manager plugin follow: https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html"
+    fi
+fi
+
 debug $RY_ECS_DIR_PATH
 
 [ -d $RY_ECS_DIR_PATH ] && fatal "Rayyone ECS config dir existed!"
