@@ -102,7 +102,7 @@ input_aws_cred() {
 
 env_confirm() {
   if [[ $ENV == "prod" ]]; then
-    read -r -p "${RED}ARE YOU SURE CONTINUE ON PRODUCTION? [y/N] " response
+    read -r -p "${RED}ARE YOU SURE CONTINUE ON PRODUCTION?${RESET} [y/N] " response
     if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]
     then
       info "DEPLOY TO PRODUCTION!!!!!"
