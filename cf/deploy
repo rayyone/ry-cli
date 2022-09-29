@@ -48,6 +48,8 @@ set +a
 source ./"$path"/config.conf
 set +a
 
+env_confirm
+
 script="aws s3 --profile $AWS_PROFILE sync ./$path $S3_BUCKET/$path --delete \\
         --exclude '_example/*' \\
         --exclude '.idea/*' \\
