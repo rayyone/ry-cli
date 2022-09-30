@@ -16,7 +16,7 @@ new_deployment_ecs_service() {
   script="aws ecs update-service --profile $AWS_PROFILE \\
                 --cluster $ECS_CLUSTER_NAME \\
                 --service $ECS_SERVICE_NAME \\
-                --force-new-deployment \\
+                --force-new-deployment >> /dev/null
     "
 
   [ -n "$desired_count" ] && script="$script --desired-count $desired_count"
