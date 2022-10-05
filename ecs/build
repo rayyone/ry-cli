@@ -62,16 +62,32 @@ images_str=""
 if [[ -n $images ]]; then
   images_str=$(echo "$images" | sed -r 's/,/ /g')
 fi
-build_script="docker-compose build $images_str"
+docker_compose_file="ecs-docker-compose.yml"
+if [ ! -f "$docker_compose_file" ]; then
+    docker_compose_file="docker-compose.yml"
+fi
+build_script="docker-compose -f $docker_compose_file build $images_str"
 echo "$build_script" && eval "$build_script"
 
 log_step "Uploading to AWS ECR repo: $IMAGE_URI"
+#info "Check repo: $ECR_APP_REPO_NAME"
+#IMAGE_META="$( aws ecr describe-images --repository-name=admin-api-prod --output json )"
+#info $IMAGE_META
+#if [[ $? == 0 ]]; then
+#  echo "$ECR_APP_REPO_NAME found"
+#else
+#  info "Create repo: $ECR_APP_REPO_NAME"
+#    echo "$ECR_APP_REPO_NAME not found"
+#    exit 1
+#fi
+#info $IMAGE_META
+#exit 2
 docker-compose push
 log "Upload to AWS ECR successfully!"
 
 log_step 'Delete untagged images... Press "Ctr + q" to proceed to next step'
 IMAGES_TO_DELETE=$(aws ecr list-images --profile $AWS_PROFILE --region "$AWS_REGION" --repository-name "$ECR_APP_REPO_NAME" --filter "tagStatus=UNTAGGED" --query 'imageIds[*]' --output json)
-aws ecr batch-delete-image --profile $AWS_PROFILE --repository-name "$ECR_APP_REPO_NAME" --image-ids "$IMAGES_TO_DELETE" || true
+aws ecr batch-delete-image --profile $AWS_PROFILE --repository-name "$ECR_APP_REPO_NAME" --image-ids "$IMAGES_TO_DELETE" || true >> /dev/null
 
 if [[ $should_deploy == "true" ]]; then
   info "Deploying to ECS..."
