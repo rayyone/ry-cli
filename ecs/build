@@ -82,7 +82,7 @@ log_step "Uploading to AWS ECR repo: $IMAGE_URI"
 #fi
 #info $IMAGE_META
 #exit 2
-docker-compose push
+docker-compose -f $docker_compose_file push
 log "Upload to AWS ECR successfully!"
 
 log_step 'Delete untagged images... Press "Ctr + q" to proceed to next step'
