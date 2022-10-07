@@ -1,0 +1,69 @@
+#!/bin/bash
+# shellcheck disable=SC2046
+
+set -e
+source $RY_ROOT/utils/util
+source $RY_ROOT/ecs/functions
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+  --config=* | -c=*)
+    config_file_arg="${1#*=}"
+    ;;
+  --desired_count=* | -n=*)
+    desired_count="${1#*=}"
+    ;;
+  -h)
+    info "Available options:
+-c    --config          Config file's name in .rayyone dir (staging.conf, prod.conf,...)
+-n    --desired_count   Desired running tasks
+-h                      help"
+    exit 0
+    ;;
+  *)
+    fatal "Error: Unknown argument: $1"
+    ;;
+  esac
+  shift
+done
+
+[ ! -d ./$RY_ECS_DIR_PATH ] && fatal 'Config dir not found. Please run "ry ecs init" at your root project first'
+
+current_git_branch=$(git rev-parse --abbrev-ref HEAD)
+info "Git branch: $current_git_branch"
+
+config_file=$config_file_arg
+if [[ -z $config_file ]]; then
+  config_files=($(ls ./$RY_ECS_DIR_PATH/ 2>&1 | grep conf | sort -r))
+  config_file=$(select_prompt "Select stage: " "${config_files[@]}")
+fi
+
+set -a
+source ./$RY_ECS_DIR_PATH/$config_file
+set +a
+
+#env_confirm
+#
+#input_aws_cred
+#
+#info "Deploying to ECS..."
+#new_deployment_ecs_service "$desired_count"
+#
+#log "Success!"
+
+
+GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+log_step "Creating a new deployment at AWS CodeDeploy..."
+info "Using latest commit at git branch: $MAGENTA$GIT_BRANCH$RESET"
+
+COMMIT_HASH=$(git rev-parse --verify "$GIT_BRANCH")
+
+aws deploy create-deployment --profile "$AWS_PROFILE" \
+  --application-name "$CD_APP_NAME" \
+  --deployment-group-name "$CD_GROUP_NAME" \
+  --description "Commit: $COMMIT_HASH" \
+  --github-location repository="$GITHUB_REPO",commitId="$COMMIT_HASH" \
+  --no-cli-pager
+
+info Success! Visit the deployment process at:
+info "https://ap-southeast-1.console.aws.amazon.com/codesuite/codedeploy/deployments?region=ap-southeast-1"

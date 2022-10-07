@@ -5,6 +5,8 @@ set -e
 source $RY_ROOT/utils/util
 source $RY_ROOT/ecs/functions
 
+export AWS_PROFILE=default
+
 while [ $# -gt 0 ]; do
   case "$1" in
   --deploy | -d)
