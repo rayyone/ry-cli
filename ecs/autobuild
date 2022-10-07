@@ -33,8 +33,8 @@ done
 
 [ ! -d ./$RY_ECS_DIR_PATH ] && fatal 'Config dir not found. Please run "ry ecs init" at your root project first'
 
-current_git_branch=$(git rev-parse --abbrev-ref HEAD)
-info "Git branch: $current_git_branch"
+#current_git_branch=$(git rev-parse --abbrev-ref HEAD)
+#info "Git branch: $current_git_branch"
 
 config_file=$config_file_arg
 if [[ -z $config_file ]]; then
@@ -46,16 +46,16 @@ set -a
 source ./$RY_ECS_DIR_PATH/$config_file
 set +a
 
-env_confirm
+#env_confirm
 
-input_aws_cred
+#input_aws_cred
 
 log "IMAGE_URI: $IMAGE_URI"
 
 info "Start building & upload images to AWS ECR"
 
 log_step "Logging in Amazon ECR..."
-aws ecr get-login-password --profile "$AWS_PROFILE" --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ECR_REPO"
+aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ECR_REPO"
 
 log_step "Building docker images"
 images_str=""
@@ -70,24 +70,13 @@ build_script="docker-compose -f $docker_compose_file build $images_str"
 echo "$build_script" && eval "$build_script"
 
 log_step "Uploading to AWS ECR repo: $IMAGE_URI"
-#info "Check repo: $ECR_APP_REPO_NAME"
-#IMAGE_META="$( aws ecr describe-images --repository-name=admin-api-prod --output json )"
-#info $IMAGE_META
-#if [[ $? == 0 ]]; then
-#  echo "$ECR_APP_REPO_NAME found"
-#else
-#  info "Create repo: $ECR_APP_REPO_NAME"
-#    echo "$ECR_APP_REPO_NAME not found"
-#    exit 1
-#fi
-#info $IMAGE_META
-#exit 2
+
 docker-compose -f $docker_compose_file push
 log "Upload to AWS ECR successfully!"
 
 log_step 'Delete untagged images... Press "Ctr + q" to proceed to next step'
-IMAGES_TO_DELETE=$(aws ecr list-images --profile $AWS_PROFILE --region "$AWS_REGION" --repository-name "$ECR_APP_REPO_NAME" --filter "tagStatus=UNTAGGED" --query 'imageIds[*]' --output json)
-aws ecr batch-delete-image --profile $AWS_PROFILE --repository-name "$ECR_APP_REPO_NAME" --image-ids "$IMAGES_TO_DELETE" || true >> /dev/null
+IMAGES_TO_DELETE=$(aws ecr list-images  --region "$AWS_REGION" --repository-name "$ECR_APP_REPO_NAME" --filter "tagStatus=UNTAGGED" --query 'imageIds[*]' --output json)
+aws ecr batch-delete-image  --repository-name "$ECR_APP_REPO_NAME" --image-ids "$IMAGES_TO_DELETE" || true >> /dev/null
 
 if [[ $should_deploy == "true" ]]; then
   info "Deploying to ECS..."
