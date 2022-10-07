@@ -5,8 +5,6 @@ set -e
 source $RY_ROOT/utils/util
 source $RY_ROOT/ecs/functions
 
-export AWS_PROFILE=default
-
 while [ $# -gt 0 ]; do
   case "$1" in
   --deploy | -d)
@@ -47,6 +45,9 @@ fi
 set -a
 source ./$RY_ECS_DIR_PATH/$config_file
 set +a
+
+export AWS_PROFILE=default
+AWS_PROFILE=$AWS_PROFILE
 
 #env_confirm
 
