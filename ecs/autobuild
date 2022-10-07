@@ -46,8 +46,7 @@ set -a
 source ./$RY_ECS_DIR_PATH/$config_file
 set +a
 
-export AWS_PROFILE=default
-AWS_PROFILE=$AWS_PROFILE
+unset AWS_PROFILE
 
 #env_confirm
 
