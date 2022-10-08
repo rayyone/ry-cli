@@ -13,7 +13,7 @@ new_deployment_ecs_service() {
   fi
 
   log_step "Force new deployment on ECS service: $ECS_SERVICE_NAME in CLUSTER $ECS_CLUSTER_NAME"
-  script="aws ecs update-service --profile $AWS_PROFILE \\
+  script="aws ecs update-service \\
                 --cluster $ECS_CLUSTER_NAME \\
                 --service $ECS_SERVICE_NAME \\
                 --force-new-deployment >> /dev/null
