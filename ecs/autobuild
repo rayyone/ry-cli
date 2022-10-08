@@ -2,6 +2,10 @@
 # shellcheck disable=SC2046
 
 set -e
+
+export DOCKER_BUILDKIT=1
+export COMPOSE_DOCKER_CLI_BUILD=1
+
 source $RY_ROOT/utils/util
 source $RY_ROOT/ecs/functions
 
@@ -68,7 +72,7 @@ docker_compose_file="ecs-docker-compose.yml"
 if [ ! -f "$docker_compose_file" ]; then
     docker_compose_file="docker-compose.yml"
 fi
-build_script="docker-compose -f $docker_compose_file build $images_str"
+build_script="docker-compose -f $docker_compose_file build $images_str --build-arg BUILDKIT_INLINE_CACHE=1"
 echo "$build_script" && eval "$build_script"
 
 log_step "Uploading to AWS ECR repo: $IMAGE_URI"
