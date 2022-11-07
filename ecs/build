@@ -52,6 +52,7 @@ set +a
 
 if [[ $using_CI == "true" ]]; then
   unset AWS_PROFILE
+  aws configure set region "$AWS_REGION" --profile default
 else
   env_confirm
   input_aws_cred
