@@ -74,7 +74,7 @@ docker_compose_file="ecs-docker-compose.yml"
 if [ ! -f "$docker_compose_file" ]; then
   docker_compose_file="docker-compose.yml"
 fi
-build_script="docker-compose -f $docker_compose_file build $images_str --build-arg BUILDKIT_INLINE_CACHE=1"
+build_script="docker-compose -f $docker_compose_file build --build-arg BUILDKIT_INLINE_CACHE=1 $images_str"
 echo "$build_script" && eval "$build_script"
 
 log_step "Uploading to AWS ECR repo: $IMAGE_URI"

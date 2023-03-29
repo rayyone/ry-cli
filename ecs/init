@@ -27,6 +27,7 @@ mkdir -p $RY_ECS_DIR_PATH
 
 log_step "Copying config files..."
 cp $RY_ROOT/ecs/example.conf ./$RY_ECS_DIR_PATH/staging.conf
+cp $RY_ROOT/ecs/.gitignore-example ./$RY_ECS_DIR_PATH/.gitignore
 
 info "Success!"
 info "Please update the config file at '$RY_ECS_DIR_PATH/staging.conf'"
