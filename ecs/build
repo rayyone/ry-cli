@@ -20,6 +20,9 @@ while [ $# -gt 0 ]; do
   --images=* | -i=*)
     images="${1#*=}"
     ;;
+  --no-cache)
+    build_no_cache="true"
+    ;;
   -ci)
     using_CI="true"
     ;;
@@ -74,7 +77,12 @@ docker_compose_file="ecs-docker-compose.yml"
 if [ ! -f "$docker_compose_file" ]; then
   docker_compose_file="docker-compose.yml"
 fi
-build_script="docker-compose -f $docker_compose_file build --build-arg BUILDKIT_INLINE_CACHE=1 $images_str"
+
+build_script="docker-compose -f $docker_compose_file build --build-arg BUILDKIT_INLINE_CACHE=1"
+if [[ $build_no_cache == "true" ]]; then
+  build_script="${build_script} --no-cache"
+fi
+build_script="${build_script} $images_str"
 echo "$build_script" && eval "$build_script"
 
 log_step "Uploading to AWS ECR repo: $IMAGE_URI"
