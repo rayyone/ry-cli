@@ -101,10 +101,18 @@ log_step "Uploading to AWS ECR repo: $IMAGE_URI"
 docker-compose -f $docker_compose_file push
 log "Upload to AWS ECR successfully!"
 
-log_step 'Delete untagged images... Press "Ctr + q" to proceed to next step'
+log_step 'Delete untagged APP images... Press "Ctr + q" to proceed to next step'
+log "ECR_APP_REPO_NAME: $ECR_APP_REPO_NAME"
 IMAGES_TO_DELETE=$(aws ecr list-images --region "$AWS_REGION" --repository-name "$ECR_APP_REPO_NAME" --filter "tagStatus=UNTAGGED" --query 'imageIds[*]' --output json)
+log "IMAGES_TO_DELETE: $IMAGES_TO_DELETE"
 # shellcheck disable=SC2034
 delete_img=$(aws ecr batch-delete-image --repository-name "$ECR_APP_REPO_NAME" --image-ids "$IMAGES_TO_DELETE" || true >>/dev/null)
+
+log_step 'Delete untagged NGINX images... Press "Ctr + q" to proceed to next step'
+NGINX_IMAGES_TO_DELETE=$(aws ecr list-images --region "$AWS_REGION" --repository-name "$ECR_APP_REPO_NAME-nginx" --filter "tagStatus=UNTAGGED" --query 'imageIds[*]' --output json)
+log "NGINX_IMAGES_TO_DELETE: $NGINX_IMAGES_TO_DELETE"
+# shellcheck disable=SC2034
+delete_img=$(aws ecr batch-delete-image --repository-name "$ECR_APP_REPO_NAME-nginx" --image-ids "$NGINX_IMAGES_TO_DELETE" || true >>/dev/null)
 
 if [[ $should_deploy == "true" ]]; then
   info "Deploying to ECS..."
