@@ -133,8 +133,4 @@ if [[ $should_deploy == "true" && $is_local != "true" ]]; then
   exit 0
 fi
 
-if [[ $is_local == "true" ]]; then
-  log "Run 'docker-compose -f docker-compose.dev.yml  --env-file .env.dev up' to run your app"
-fi
-
 log "Success!"
