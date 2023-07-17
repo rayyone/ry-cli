@@ -1,0 +1,90 @@
+#!/bin/bash
+
+set -e
+source $RY_ROOT/utils/util
+
+profile="default"
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+  -ip)
+    action="whitelist-ip"
+    ;;
+  -p=*)
+    profile="${1#*=}"
+    ;;
+  -h)
+    info "Available options:
+-ip    whitelist ip in ec2
+-h              help"
+    exit 0
+    ;;
+  *)
+    printf "* Error: Invalid argument.*\n"
+    exit 1
+    ;;
+  esac
+  shift
+done
+
+[[ -z $action ]] && fatal "Wrong command format. Missing argument"
+
+if [[ -z $profile ]]; then
+  profile="default"
+  config_files=($(ls ./$RY_ECS_DIR_PATH/ 2>&1 | grep conf | sort -r))
+  if [[ ${#config_files[@]} -eq 0 ]]; then
+    info "Could not find '.rayyone' config dir."
+    info "Using the 'default' profile."
+    info "[Hint] Add option: -p=[aws_profile] to use your desired AWS profile."
+  else
+    config_file=$(select_prompt "Select stage: " "${config_files[@]}")
+    set -a
+    source ./$RY_ECS_DIR_PATH/$config_file
+    set +a
+    profile=$AWS_PROFILE
+  fi
+fi
+
+info "Using AWS profile: "$profile
+
+if [ "$action" == 'whitelist-ip' ]; then
+  ip_choices=('machine ip' 'input myself')
+  ip_type=$(select_prompt "Which IP?: " "${ip_choices[@]}")
+
+  if [ "$ip_type" == 'input myself' ]; then
+    ip=$(prompt 'Please input IP:')
+  fi
+  if [ "$ip_type" == 'machine ip' ]; then
+    ip=$(dig +short myip.opendns.com @resolver1.opendns.com)
+    info "Current machine public IP: $ip"
+  fi
+
+  script="aws ec2 --profile $profile describe-security-groups --filters \"Name=tag-value,Values=cli\" | jq -r '[.SecurityGroups[].GroupName, .SecurityGroups[].GroupId]'  | tr -d '[],\" ' "
+  echo "$script" && groups=($(eval "$script"))
+  groupsCount=${#groups[@]}
+  groupsHalf=$(($groupsCount / 2))
+
+  names=(${groups[@]:0:$groupsHalf})
+  ids=(${groups[@]:$groupsHalf:$groupsCount})
+
+  info "Select Group: "
+  select choice in "${names[@]}"; do
+    if [[ -z "$choice" ]]; then
+      printf '"%s" is not a valid choice\n' "$REPLY" >&2
+    else
+      user_in="$((REPLY - 1))"
+      break
+    fi
+  done
+  select_group_id=${ids[$user_in]}
+  echo $select_group_id
+  NOW=$(date '+%Y-%m-%d %T')
+
+  script="aws ec2 --profile $profile authorize-security-group-ingress \\
+   --group-id $select_group_id \\
+   --ip-permissions IpProtocol=tcp,FromPort=22,ToPort=22,IpRanges=\"[{CidrIp=$ip/32,Description='Added by Rayyone CLI at $NOW'}]\"
+   "
+
+  log "$script" && eval "$script"
+  log "done"
+fi

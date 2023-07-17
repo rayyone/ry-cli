@@ -19,4 +19,7 @@ case $1 in
 "cf")
   RY_ROOT=$RY_ROOT /bin/bash $RY_ROOT/$1/$2 "${@:3}"
   ;;
+"aws")
+  RY_ROOT=$RY_ROOT /bin/bash $RY_ROOT/$1/$2 "${@:3}"
+  ;;
 esac
