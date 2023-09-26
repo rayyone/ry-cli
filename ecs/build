@@ -26,9 +26,6 @@ while [ $# -gt 0 ]; do
   -ci)
     using_CI="true"
     ;;
-  -dev)
-    is_local="true"
-    ;;
   -h)
     info "Available options:
 -c    --config   Config file's name in .rayyone dir (staging.conf, prod.conf,...)
@@ -72,12 +69,6 @@ log_step "Logging in Amazon ECR..."
 aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ECR_REPO"
 
 log_step "Building docker images"
-
-if [ ! -f "./.env" ]; then
-  log_step ".env file not found. Create an empty one"
-  touch .env
-fi
-
 images_str=""
 if [[ -n $images ]]; then
   images_str=$(echo "$images" | sed -r 's/,/ /g')
@@ -94,39 +85,36 @@ fi
 build_script="${build_script} $images_str"
 echo "$build_script" && eval "$build_script"
 
-if [[ $is_local != "true" ]]; then
-  log_step "Uploading to AWS ECR repo: $IMAGE_URI"
-  #info "Check repo: $ECR_APP_REPO_NAME"
-  #IMAGE_META="$( aws ecr describe-images --repository-name=admin-api-prod --output json )"
-  #info $IMAGE_META
-  #if [[ $? == 0 ]]; then
-  #  echo "$ECR_APP_REPO_NAME found"
-  #else
-  #  info "Create repo: $ECR_APP_REPO_NAME"
-  #    echo "$ECR_APP_REPO_NAME not found"
-  #    exit 1
-  #fi
-  #info $IMAGE_META
-  #exit 2
+log_step "Uploading to AWS ECR repo: $IMAGE_URI"
+#info "Check repo: $ECR_APP_REPO_NAME"
+#IMAGE_META="$( aws ecr describe-images --repository-name=admin-api-prod --output json )"
+#info $IMAGE_META
+#if [[ $? == 0 ]]; then
+#  echo "$ECR_APP_REPO_NAME found"
+#else
+#  info "Create repo: $ECR_APP_REPO_NAME"
+#    echo "$ECR_APP_REPO_NAME not found"
+#    exit 1
+#fi
+#info $IMAGE_META
+#exit 2
+docker-compose -f $docker_compose_file push
+log "Upload to AWS ECR successfully!"
 
-  docker-compose -f $docker_compose_file push
-  log "Upload to AWS ECR successfully!"
+log_step 'Delete untagged APP images... Press "Ctr + q" to proceed to next step'
+log "ECR_APP_REPO_NAME: $ECR_APP_REPO_NAME"
+IMAGES_TO_DELETE=$(aws ecr list-images --region "$AWS_REGION" --repository-name "$ECR_APP_REPO_NAME" --filter "tagStatus=UNTAGGED" --query 'imageIds[*]' --output json)
+log "IMAGES_TO_DELETE: $IMAGES_TO_DELETE"
+# shellcheck disable=SC2034
+delete_img=$(aws ecr batch-delete-image --repository-name "$ECR_APP_REPO_NAME" --image-ids "$IMAGES_TO_DELETE" || true >>/dev/null)
 
-  log_step 'Delete untagged APP images... Press "Ctr + q" to proceed to next step'
-  log "ECR_APP_REPO_NAME: $ECR_APP_REPO_NAME"
-  IMAGES_TO_DELETE=$(aws ecr list-images --region "$AWS_REGION" --repository-name "$ECR_APP_REPO_NAME" --filter "tagStatus=UNTAGGED" --query 'imageIds[*]' --output json)
-  log "IMAGES_TO_DELETE: $IMAGES_TO_DELETE"
-  # shellcheck disable=SC2034
-  delete_img=$(aws ecr batch-delete-image --repository-name "$ECR_APP_REPO_NAME" --image-ids "$IMAGES_TO_DELETE" || true >>/dev/null)
+log_step 'Delete untagged NGINX images... Press "Ctr + q" to proceed to next step'
+NGINX_IMAGES_TO_DELETE=$(aws ecr list-images --region "$AWS_REGION" --repository-name "$ECR_APP_REPO_NAME-nginx" --filter "tagStatus=UNTAGGED" --query 'imageIds[*]' --output json)
+log "NGINX_IMAGES_TO_DELETE: $NGINX_IMAGES_TO_DELETE"
+# shellcheck disable=SC2034
+delete_img=$(aws ecr batch-delete-image --repository-name "$ECR_APP_REPO_NAME-nginx" --image-ids "$NGINX_IMAGES_TO_DELETE" || true >>/dev/null)
 
-  log_step 'Delete untagged NGINX images... Press "Ctr + q" to proceed to next step'
-  NGINX_IMAGES_TO_DELETE=$(aws ecr list-images --region "$AWS_REGION" --repository-name "$ECR_APP_REPO_NAME-nginx" --filter "tagStatus=UNTAGGED" --query 'imageIds[*]' --output json)
-  log "NGINX_IMAGES_TO_DELETE: $NGINX_IMAGES_TO_DELETE"
-  # shellcheck disable=SC2034
-  delete_img=$(aws ecr batch-delete-image --repository-name "$ECR_APP_REPO_NAME-nginx" --image-ids "$NGINX_IMAGES_TO_DELETE" || true >>/dev/null)
-fi
-
-if [[ $should_deploy == "true" && $is_local != "true" ]]; then
+if [[ $should_deploy == "true" ]]; then
   info "Deploying to ECS..."
   new_deployment_ecs_service
   log "Success!"
