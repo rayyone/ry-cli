@@ -69,7 +69,13 @@ log "IMAGE_URI: $IMAGE_URI"
 info "Start building & upload images to AWS ECR"
 
 log_step "Logging in Amazon ECR..."
-aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ECR_REPO"
+if [[ $ECR_REPO == *"public"* ]]; then
+  log_step "A public ECR is found..."
+  aws ecr-public get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ECR_REPO"
+else
+  log_step "A private ECR is found..."
+  aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ECR_REPO"
+fi
 
 log_step "Building docker images"
 
