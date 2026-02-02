@@ -78,7 +78,8 @@ if [ ! -f "$docker_compose_file" ]; then
   docker_compose_file="docker-compose.yml"
 fi
 
-build_script="docker-compose -f $docker_compose_file build --build-arg BUILDKIT_INLINE_CACHE=1"
+build_script="DOCKER_BUILDKIT=1 docker compose -f $docker_compose_file build --parallel=1 --build-arg BUILDKIT_INLINE_CACHE=1"
+
 if [[ $build_no_cache == "true" ]]; then
   build_script="${build_script} --no-cache"
 fi
