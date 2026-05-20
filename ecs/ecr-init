@@ -1,0 +1,74 @@
+#!/bin/bash
+# shellcheck disable=SC2046
+
+set -e
+source $RY_ROOT/utils/util
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+  --config=* | -c=*)
+    config_file_arg="${1#*=}"
+    ;;
+  -h)
+    info "Available options:
+-c    --config   Config file's name in .rayyone/ecs/ dir (staging.conf, prod.conf,...)
+-h               help
+
+Creates ECR repositories defined in the config file:
+  - ECR_APP_REPO_NAME        (e.g. ry-wiki)
+
+Skips creation if repo already exists."
+    exit 0
+    ;;
+  *)
+    fatal "Error: Unknown argument: $1"
+    ;;
+  esac
+  shift
+done
+
+[ ! -d ./$RY_ECS_DIR_PATH ] && fatal 'Config dir not found. Please run "ry ecs init" at your root project first'
+
+config_file=$config_file_arg
+if [[ -z $config_file ]]; then
+  config_files=($(ls ./$RY_ECS_DIR_PATH/ 2>&1 | grep conf | sort -r))
+  config_file=$(select_prompt "Select stage: " "${config_files[@]}")
+fi
+
+set -a
+source ./$RY_ECS_DIR_PATH/$config_file
+set +a
+
+input_aws_cred
+
+[[ -z $ECR_APP_REPO_NAME ]] && fatal "ECR_APP_REPO_NAME is not set in $config_file"
+[[ -z $AWS_REGION ]] && fatal "AWS_REGION is not set in $config_file"
+
+create_repo_if_missing() {
+  local repo_name=$1
+  log_step "Checking ECR repo: $repo_name"
+
+  existing=$(aws ecr describe-repositories \
+    --repository-names "$repo_name" \
+    --region "$AWS_REGION" \
+    --profile "$AWS_PROFILE" \
+    --query 'repositories[0].repositoryUri' \
+    --output text 2>/dev/null || echo "")
+
+  if [[ -n $existing && $existing != "None" ]]; then
+    log "Already exists: $existing"
+  else
+    info "Creating ECR repo: $repo_name"
+    uri=$(aws ecr create-repository \
+      --repository-name "$repo_name" \
+      --region "$AWS_REGION" \
+      --profile "$AWS_PROFILE" \
+      --query 'repository.repositoryUri' \
+      --output text)
+    log "Created: $uri"
+  fi
+}
+
+create_repo_if_missing "$ECR_APP_REPO_NAME"
+
+log "Done! ECR repo ready for: $ECR_APP_REPO_NAME"

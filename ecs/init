@@ -28,6 +28,13 @@ mkdir -p $RY_ECS_DIR_PATH
 log_step "Copying config files..."
 cp $RY_ROOT/ecs/example.conf ./$RY_ECS_DIR_PATH/staging.conf
 cp $RY_ROOT/ecs/.gitignore-example ./$RY_ECS_DIR_PATH/.gitignore
+cp $RY_ROOT/ecs/GUIDE.template.md ./$RY_ECS_DIR_PATH/GUIDE.md
 
 info "Success!"
-info "Please update the config file at '$RY_ECS_DIR_PATH/staging.conf'"
+info "Next steps:"
+info "  1. Fill in '$RY_ECS_DIR_PATH/staging.conf' with your service details"
+info "  2. Run 'ry ecs ecr-init -c=staging.conf' to create ECR repositories"
+info "  3. Run 'ry ecs build -c=staging.conf' to push your first image"
+info "  4. Deploy CloudFormation stack in aws-cf repo"
+info ""
+info "See '$RY_ECS_DIR_PATH/GUIDE.md' for full instructions."
