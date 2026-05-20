@@ -50,6 +50,8 @@ set +a
 
 env_confirm
 
+check_s3_matches_git_head "$path" "$S3_BUCKET" "$AWS_PROFILE"
+
 script="aws s3 --profile $AWS_PROFILE sync ./$path $S3_BUCKET/$path --delete \\
         --exclude '.idea/*' \\
         --exclude '.git/*' \\
