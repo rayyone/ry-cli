@@ -50,7 +50,16 @@ set +a
 
 env_confirm
 
-check_s3_matches_git_head "$path" "$S3_BUCKET" "$AWS_PROFILE"
+log_step "Pulling latest changes from origin master..."
+git_output=$(git pull origin master 2>&1)
+git_exit=$?
+echo "$git_output"
+if [ $git_exit -ne 0 ]; then
+  fatal "git pull failed. Resolve issues before deploying."
+fi
+if ! echo "$git_output" | grep -q "Already up to date."; then
+  fatal "New changes pulled from origin. Review changes before deploying."
+fi
 
 script="aws s3 --profile $AWS_PROFILE sync ./$path $S3_BUCKET/$path --delete \\
         --exclude '.idea/*' \\
