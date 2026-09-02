@@ -93,6 +93,25 @@ if [ ! -f "$docker_compose_file" ]; then
   docker_compose_file="docker-compose.yml"
 fi
 
+# Cleanup deletes images nobody references, so it must never turn a successful push into a failed
+# release. Under `set -e` a bare list-images was enough to exit 254 on an app with no nginx sidecar,
+# and batch-delete-image rejects the empty list a repository with nothing untagged produces.
+prune_untagged_images() {
+  local repository=$1 untagged
+  log "ECR repository: $repository"
+  if ! untagged=$(aws ecr list-images --region "$AWS_REGION" --repository-name "$repository" --filter "tagStatus=UNTAGGED" --query 'imageIds[*]' --output json 2>/dev/null); then
+    log "Skip $repository: repository unavailable"
+    return 0
+  fi
+  if [[ -z $untagged || $untagged == "[]" ]]; then
+    log "Skip $repository: nothing untagged"
+    return 0
+  fi
+  log "IMAGES_TO_DELETE: $untagged"
+  aws ecr batch-delete-image --region "$AWS_REGION" --repository-name "$repository" --image-ids "$untagged" >/dev/null ||
+    log "Skip $repository: delete failed, images left in place"
+}
+
 build_script="docker-compose -f $docker_compose_file build --build-arg BUILDKIT_INLINE_CACHE=1"
 if [[ $build_no_cache == "true" ]]; then
   build_script="${build_script} --no-cache"
@@ -119,17 +138,10 @@ if [[ $is_local != "true" ]]; then
   log "Upload to AWS ECR successfully!"
 
   log_step 'Delete untagged APP images... Press "Ctr + q" to proceed to next step'
-  log "ECR_APP_REPO_NAME: $ECR_APP_REPO_NAME"
-  IMAGES_TO_DELETE=$(aws ecr list-images --region "$AWS_REGION" --repository-name "$ECR_APP_REPO_NAME" --filter "tagStatus=UNTAGGED" --query 'imageIds[*]' --output json)
-  log "IMAGES_TO_DELETE: $IMAGES_TO_DELETE"
-  # shellcheck disable=SC2034
-  delete_img=$(aws ecr batch-delete-image --repository-name "$ECR_APP_REPO_NAME" --image-ids "$IMAGES_TO_DELETE" || true >>/dev/null)
+  prune_untagged_images "$ECR_APP_REPO_NAME"
 
   log_step 'Delete untagged NGINX images... Press "Ctr + q" to proceed to next step'
-  NGINX_IMAGES_TO_DELETE=$(aws ecr list-images --region "$AWS_REGION" --repository-name "$ECR_APP_REPO_NAME-nginx" --filter "tagStatus=UNTAGGED" --query 'imageIds[*]' --output json)
-  log "NGINX_IMAGES_TO_DELETE: $NGINX_IMAGES_TO_DELETE"
-  # shellcheck disable=SC2034
-  delete_img=$(aws ecr batch-delete-image --repository-name "$ECR_APP_REPO_NAME-nginx" --image-ids "$NGINX_IMAGES_TO_DELETE" || true >>/dev/null)
+  prune_untagged_images "$ECR_APP_REPO_NAME-nginx"
 fi
 
 if [[ $should_deploy == "true" && $is_local != "true" ]]; then
