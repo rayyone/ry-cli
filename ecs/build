@@ -97,7 +97,7 @@ fi
 # release. Under `set -e` a bare list-images was enough to exit 254 on an app with no nginx sidecar,
 # and batch-delete-image rejects the empty list a repository with nothing untagged produces.
 prune_untagged_images() {
-  local repository=$1 untagged
+  local repository=$1 untagged chunk
   log "ECR repository: $repository"
   if ! untagged=$(aws ecr list-images --region "$AWS_REGION" --repository-name "$repository" --filter "tagStatus=UNTAGGED" --query 'imageIds[*]' --output json 2>/dev/null); then
     log "Skip $repository: repository unavailable"
@@ -107,9 +107,11 @@ prune_untagged_images() {
     log "Skip $repository: nothing untagged"
     return 0
   fi
-  log "IMAGES_TO_DELETE: $untagged"
-  aws ecr batch-delete-image --region "$AWS_REGION" --repository-name "$repository" --image-ids "$untagged" >/dev/null ||
-    log "Skip $repository: delete failed, images left in place"
+  while IFS= read -r chunk <&3; do
+    log "Deleting $(jq 'length' <<<"$chunk") untagged images from $repository"
+    aws ecr batch-delete-image --region "$AWS_REGION" --repository-name "$repository" --image-ids "$chunk" >/dev/null ||
+      log "Skip chunk of $repository: delete failed, images left in place"
+  done 3< <(jq -c '[range(0; length; 100) as $i | .[$i:$i+100]][]' <<<"$untagged")
 }
 
 build_script="docker-compose -f $docker_compose_file build --build-arg BUILDKIT_INLINE_CACHE=1"
