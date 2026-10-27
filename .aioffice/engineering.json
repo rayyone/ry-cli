@@ -1,0 +1,4 @@
+{
+  "schema": 1,
+  "test_cmd": "for f in $(git ls-files); do head -n1 \"$f\" | grep -q '^#!.*sh' || continue; bash -n \"$f\" || exit 1; done"
+}
